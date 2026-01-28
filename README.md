@@ -428,6 +428,12 @@ While this application is designed to be safe to use (you don't need to root you
 
 The app is generally safe to use once Developer Mode is enabled, but always maintain backups of important data.
 
+## Support
+
+If this project saves you time and you’d like to help keep it **free** (and support continued maintenance), consider buying me a coffee:
+
+![Support the project](support-qr.png)
+
 ## License
 
 See [LICENSE](LICENSE) file.
