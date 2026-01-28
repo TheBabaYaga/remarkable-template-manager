@@ -432,7 +432,7 @@ The app is generally safe to use once Developer Mode is enabled, but always main
 
 If this project saves you time and you’d like to help keep it **free** (and support continued maintenance), consider buying me a coffee:
 
-![Support the project](support-qr.png)
+<img src="support-qr.png" alt="Support the project" width="350" />
 
 ## License
 
