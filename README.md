@@ -434,6 +434,14 @@ If this project saves you time and you’d like to help keep it **free** (and su
 
 <img src="support-qr.png" alt="Support the project" width="350" />
 
+## Contributing
+
+Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+
+- Opening issues (bug reports, feature requests, questions)
+- Development workflow and expectations
+- Submitting pull requests
+
 ## License
 
 See [LICENSE](LICENSE) file.
