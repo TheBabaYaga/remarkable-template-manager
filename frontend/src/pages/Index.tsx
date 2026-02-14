@@ -8,7 +8,7 @@ import ConnectionLostDialog from "@/components/ConnectionLostDialog";
 import SyncSuccessDialog from "@/components/SyncSuccessDialog";
 import SupportDialog from "@/components/SupportDialog";
 import TemplateList, { Template, SelectedFileInfo } from "@/components/TemplateList";
-import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, SyncTemplates, RebootDevice, GetVersion } from "wailsjs/go/main/App";
+import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, SyncTemplates, RebootDevice, GetVersion, LoadConfig, SaveConfig, DeleteConfig } from "wailsjs/go/main/App";
 import { main } from "wailsjs/go/models";
 import { mapDeviceTemplatesToTemplates, removeFileExtension } from "@/lib/template-utils";
 
@@ -21,6 +21,11 @@ interface ConnectionInfo {
   templates: Template[];
 }
 
+interface SavedConfig {
+  ip: string;
+  sshKeyPath: string;
+}
+
 const Index = () => {
   const [dialogState, setDialogState] = useState<DialogState>("closed");
   const [connection, setConnection] = useState<ConnectionInfo | null>(null);
@@ -30,10 +35,27 @@ const Index = () => {
   const [syncSuccessDialog, setSyncSuccessDialog] = useState<{ open: boolean; count: number }>({ open: false, count: 0 });
   const [version, setVersion] = useState<string>("");
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
+  const [savedConfig, setSavedConfig] = useState<SavedConfig | null>(null);
 
   // Fetch version on mount
   useEffect(() => {
     GetVersion().then(setVersion).catch(() => setVersion("dev"));
+  }, []);
+
+  // Load saved config on mount
+  useEffect(() => {
+    LoadConfig()
+      .then((config) => {
+        if (config?.device) {
+          setSavedConfig({
+            ip: config.device.ip,
+            sshKeyPath: config.device.sshKeyPath,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load config:", error);
+      });
   }, []);
 
   // Periodic connection check
@@ -107,6 +129,15 @@ const Index = () => {
     console.log("Connected with SSH key:", { keyPath, ip });
     setDialogState("closed");
     await loadTemplatesFromDevice("ssh", ip, keyPath);
+    
+    // Save config after successful connection
+    try {
+      await SaveConfig(ip, keyPath);
+      setSavedConfig({ ip, sshKeyPath: keyPath });
+    } catch (error) {
+      console.error("Failed to save config:", error);
+      // Don't block connection if config save fails
+    }
   };
 
   const handleDisconnect = async () => {
@@ -116,6 +147,28 @@ const Index = () => {
       console.error("Failed to disconnect:", error);
     }
     setConnection(null);
+  };
+
+  const handleQuickConnect = async () => {
+    if (!savedConfig) return;
+    
+    try {
+      await ConnectSSH(savedConfig.sshKeyPath, savedConfig.ip);
+      await loadTemplatesFromDevice("ssh", savedConfig.ip, savedConfig.sshKeyPath);
+    } catch (error) {
+      console.error("Quick connect failed:", error);
+      // On failure, show the connection dialog
+      setDialogState("ssh-select");
+    }
+  };
+
+  const handleClearConfig = async () => {
+    try {
+      await DeleteConfig();
+      setSavedConfig(null);
+    } catch (error) {
+      console.error("Failed to clear config:", error);
+    }
   };
 
   const handleAddTemplate = (fileInfo: SelectedFileInfo) => {
@@ -372,16 +425,42 @@ const Index = () => {
               </p>
             </motion.div>
 
-            {/* CTA Button */}
+            {/* CTA Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.5 }}
-              className="w-full flex justify-center"
+              className="w-full flex flex-col items-center gap-3"
             >
-              <Button variant="connect" size="lg" onClick={() => setDialogState("ssh-select")}>
-                Connect Device
-              </Button>
+              {savedConfig ? (
+                <>
+                  <Button variant="connect" size="lg" onClick={handleQuickConnect} className="w-full max-w-xs">
+                    Connect to {savedConfig.ip}
+                  </Button>
+                  <div className="flex gap-2 w-full max-w-xs">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setDialogState("ssh-select")}
+                      className="flex-1"
+                    >
+                      Different Device
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleClearConfig}
+                      className="flex-1"
+                    >
+                      Clear Saved
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Button variant="connect" size="lg" onClick={() => setDialogState("ssh-select")}>
+                  Connect Device
+                </Button>
+              )}
             </motion.div>
           </div>
         </main>

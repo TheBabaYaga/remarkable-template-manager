@@ -14,6 +14,10 @@ export function ConnectSSH(arg1, arg2) {
   return window['go']['main']['App']['ConnectSSH'](arg1, arg2);
 }
 
+export function DeleteConfig() {
+  return window['go']['main']['App']['DeleteConfig']();
+}
+
 export function DisconnectSSH() {
   return window['go']['main']['App']['DisconnectSSH']();
 }
@@ -24,6 +28,10 @@ export function FetchTemplates() {
 
 export function GenerateSSHKey() {
   return window['go']['main']['App']['GenerateSSHKey']();
+}
+
+export function GetConfigPath() {
+  return window['go']['main']['App']['GetConfigPath']();
 }
 
 export function GetVersion() {
@@ -38,8 +46,16 @@ export function ListSSHKeys() {
   return window['go']['main']['App']['ListSSHKeys']();
 }
 
+export function LoadConfig() {
+  return window['go']['main']['App']['LoadConfig']();
+}
+
 export function RebootDevice() {
   return window['go']['main']['App']['RebootDevice']();
+}
+
+export function SaveConfig(arg1, arg2) {
+  return window['go']['main']['App']['SaveConfig'](arg1, arg2);
 }
 
 export function SelectTemplateFile() {

@@ -8,11 +8,15 @@ export function CheckConnection():Promise<void>;
 
 export function ConnectSSH(arg1:string,arg2:string):Promise<void>;
 
+export function DeleteConfig():Promise<void>;
+
 export function DisconnectSSH():Promise<void>;
 
 export function FetchTemplates():Promise<Array<main.DeviceTemplate>>;
 
 export function GenerateSSHKey():Promise<main.SSHKey>;
+
+export function GetConfigPath():Promise<string>;
 
 export function GetVersion():Promise<string>;
 
@@ -20,7 +24,11 @@ export function IsConnected():Promise<boolean>;
 
 export function ListSSHKeys():Promise<Array<main.SSHKey>>;
 
+export function LoadConfig():Promise<main.Config>;
+
 export function RebootDevice():Promise<void>;
+
+export function SaveConfig(arg1:string,arg2:string):Promise<void>;
 
 export function SelectTemplateFile():Promise<main.SelectedFile>;
 
