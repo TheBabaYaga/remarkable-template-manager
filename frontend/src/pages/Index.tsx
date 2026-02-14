@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle, Unplug, Loader2, Heart } from "lucide-react";
+import { ArrowRight, CheckCircle, Unplug, Loader2, Heart, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RemarkableDevice from "@/components/RemarkableDevice";
+import SetupChoiceDialog from "@/components/SetupChoiceDialog";
 import SSHKeySelectionDialog from "@/components/SSHKeySelectionDialog";
 import ConnectionLostDialog from "@/components/ConnectionLostDialog";
 import SyncSuccessDialog from "@/components/SyncSuccessDialog";
 import SupportDialog from "@/components/SupportDialog";
+import InfoDialog from "@/components/InfoDialog";
 import TemplateList, { Template, SelectedFileInfo } from "@/components/TemplateList";
 import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, SyncTemplates, RebootDevice, GetVersion } from "wailsjs/go/main/App";
 import { main } from "wailsjs/go/models";
 import { mapDeviceTemplatesToTemplates, removeFileExtension } from "@/lib/template-utils";
 
-type DialogState = "closed" | "ssh-select";
+type DialogState = "closed" | "setup-choice" | "ssh-select";
 
 interface ConnectionInfo {
   method: "ssh";
@@ -30,6 +32,7 @@ const Index = () => {
   const [syncSuccessDialog, setSyncSuccessDialog] = useState<{ open: boolean; count: number }>({ open: false, count: 0 });
   const [version, setVersion] = useState<string>("");
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
+  const [showSimplifiedPlaceholder, setShowSimplifiedPlaceholder] = useState(false);
 
   // Fetch version on mount
   useEffect(() => {
@@ -107,6 +110,15 @@ const Index = () => {
     console.log("Connected with SSH key:", { keyPath, ip });
     setDialogState("closed");
     await loadTemplatesFromDevice("ssh", ip, keyPath);
+  };
+
+  const handleSetupChoice = (type: "simplified" | "advanced") => {
+    setDialogState("closed"); // Close setup choice first
+    if (type === "advanced") {
+      setDialogState("ssh-select");
+    } else {
+      setShowSimplifiedPlaceholder(true);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -379,13 +391,20 @@ const Index = () => {
               transition={{ duration: 0.5, delay: 0.5 }}
               className="w-full flex justify-center"
             >
-              <Button variant="connect" size="lg" onClick={() => setDialogState("ssh-select")}>
+              <Button variant="connect" size="lg" onClick={() => setDialogState("setup-choice")}>
                 Connect Device
               </Button>
             </motion.div>
           </div>
         </main>
       )}
+
+      {/* Setup Choice Dialog */}
+      <SetupChoiceDialog
+        open={dialogState === "setup-choice"}
+        onOpenChange={(open) => setDialogState(open ? "setup-choice" : "closed")}
+        onSelectSetup={handleSetupChoice}
+      />
 
       {/* SSH Key Selection Dialog */}
       <SSHKeySelectionDialog
@@ -414,6 +433,15 @@ const Index = () => {
       <SupportDialog
         open={supportDialogOpen}
         onClose={() => setSupportDialogOpen(false)}
+      />
+
+      {/* Simplified Setup Placeholder */}
+      <InfoDialog
+        open={showSimplifiedPlaceholder}
+        title="Coming Soon"
+        message="Simplified setup is currently under development. Please use Advanced Setup to connect your device."
+        icon={Info}
+        onClose={() => setShowSimplifiedPlaceholder(false)}
       />
     </div>
   );
