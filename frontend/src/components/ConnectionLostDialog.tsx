@@ -1,14 +1,5 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { WifiOff, RefreshCw, Unplug, Loader2 } from "lucide-react";
+import { WifiOff, RefreshCw, Unplug } from "lucide-react";
+import BaseAlertDialog from "@/components/ui/base-alert-dialog";
 
 interface ConnectionLostDialogProps {
   open: boolean;
@@ -19,33 +10,28 @@ interface ConnectionLostDialogProps {
 
 const ConnectionLostDialog = ({ open, onRetry, onDisconnect, isRetrying = false }: ConnectionLostDialogProps) => {
   return (
-    <AlertDialog open={open}>
-      <AlertDialogContent className="sm:max-w-md">
-        <AlertDialogHeader className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-            <WifiOff className="h-6 w-6 text-destructive" />
-          </div>
-          <AlertDialogTitle>Connection Lost</AlertDialogTitle>
-          <AlertDialogDescription>
-            The connection to your reMarkable device has been lost. Would you like to retry or disconnect?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-          <AlertDialogCancel onClick={onDisconnect} className="gap-2" disabled={isRetrying}>
-            <Unplug className="h-4 w-4" />
-            Disconnect
-          </AlertDialogCancel>
-          <AlertDialogAction onClick={onRetry} className="gap-2" disabled={isRetrying}>
-            {isRetrying ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            {isRetrying ? "Retrying..." : "Retry"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <BaseAlertDialog
+      open={open}
+      variant="error"
+      icon={WifiOff}
+      title="Connection Lost"
+      description="The connection to your reMarkable device has been lost. Would you like to retry or disconnect?"
+      primaryAction={{
+        label: isRetrying ? "Retrying..." : "Retry",
+        onClick: onRetry,
+        icon: RefreshCw,
+        loading: isRetrying,
+        disabled: isRetrying,
+      }}
+      secondaryAction={{
+        label: "Disconnect",
+        onClick: onDisconnect,
+        icon: Unplug,
+        disabled: isRetrying,
+      }}
+      onClose={onDisconnect}
+      closeOnOverlayClick={false}
+    />
   );
 };
 

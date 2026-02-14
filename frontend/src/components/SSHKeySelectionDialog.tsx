@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Key, Plus, Eye, EyeOff, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Key, Plus, Check, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import { IPAddressInput } from "@/components/ui/ip-address-input";
 import { ListSSHKeys, ConnectSSH, GenerateSSHKey, UploadSSHKey } from "wailsjs/go/main/App";
 
 interface SSHKey {
@@ -46,7 +47,6 @@ const SSHKeySelectionDialog = ({
   
   // Credentials view state
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   // Load SSH keys from the system
   const loadSSHKeys = async () => {
@@ -69,7 +69,6 @@ const SSHKeySelectionDialog = ({
       setSelectedKey(null);
       setIp("10.11.99.1");
       setPassword("");
-      setShowPassword(false);
       setIsGenerating(false);
       setIsConnecting(false);
       setConnectionError(null);
@@ -238,18 +237,13 @@ const SSHKeySelectionDialog = ({
             {hasKeyOnDevice && (
               <div className="space-y-2">
                 <Label htmlFor="ip-select">Device IP Address</Label>
-                <Input
+                <IPAddressInput
                   id="ip-select"
-                  type="text"
                   value={ip}
                   onChange={(e) => setIp(e.target.value)}
-                  placeholder="10.11.99.1"
-                  className="font-mono"
                   disabled={isConnecting}
+                  label="Device IP Address"
                 />
-                <p className="text-xs text-muted-foreground">
-                  IP address can be found in <span className="font-mono">Settings → Help → Copyrights and licenses</span>
-                </p>
               </div>
             )}
 
@@ -363,14 +357,13 @@ const SSHKeySelectionDialog = ({
               {/* IP Address */}
               <div className="space-y-2">
                 <Label htmlFor="ip">Device IP Address</Label>
-                <Input
+                <IPAddressInput
                   id="ip"
-                  type="text"
                   value={ip}
                   onChange={(e) => setIp(e.target.value)}
-                  placeholder="10.11.99.1"
-                  className="font-mono"
                   disabled={isConnecting}
+                  label="Device IP Address"
+                  showHelperText={false}
                 />
               </div>
 
@@ -378,29 +371,14 @@ const SSHKeySelectionDialog = ({
               {!hasKeyOnDevice && (
                 <div className="space-y-2">
                   <Label htmlFor="password">Device Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter device password"
-                      className="pr-10 font-mono"
-                      disabled={isConnecting}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      disabled={isConnecting}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter device password"
+                    disabled={isConnecting}
+                    label="Device Password"
+                  />
                 </div>
               )}
             </div>
