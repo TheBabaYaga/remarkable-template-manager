@@ -56,12 +56,19 @@ func (a *App) LoadConfig() (*Config, error) {
 
 // SaveConfig saves the connection configuration
 func (a *App) SaveConfig(ip, sshKeyPath string) error {
+	// Preserve lastBackupDir if it exists
+	lastBackupDir := ""
+	if a.config != nil {
+		lastBackupDir = a.config.LastBackupDir
+	}
+	
 	config := &Config{
 		Version: configVersion,
 		Device: DeviceConfig{
 			IP:         ip,
 			SSHKeyPath: sshKeyPath,
 		},
+		LastBackupDir: lastBackupDir,
 	}
 	
 	if err := SaveConfig(config); err != nil {
@@ -72,6 +79,34 @@ func (a *App) SaveConfig(ip, sshKeyPath string) error {
 	a.config = config
 	
 	return nil
+}
+
+// SaveLastBackupDirectory saves the last backup directory to config
+func (a *App) SaveLastBackupDirectory(dir string) error {
+	// Load or create config
+	if a.config == nil {
+		a.config = &Config{
+			Version: configVersion,
+		}
+	}
+	
+	// Update last backup directory
+	a.config.LastBackupDir = dir
+	
+	// Save to disk
+	if err := SaveConfig(a.config); err != nil {
+		return err
+	}
+	
+	return nil
+}
+
+// GetLastBackupDirectory returns the last backup directory from config
+func (a *App) GetLastBackupDirectory() string {
+	if a.config != nil {
+		return a.config.LastBackupDir
+	}
+	return ""
 }
 
 // DeleteConfig removes the saved configuration

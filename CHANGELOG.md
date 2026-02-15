@@ -18,6 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Persist SSH key selection and device IP address
   - Streamlined reconnection workflow for returning users
 
+### Changed
+- **BREAKING:** Backup system completely redesigned to store backups locally instead of on the reMarkable device
+  - Backups now downloaded to user's computer and compressed as `.zip` archives
+  - User selects backup location via native directory picker on each backup
+  - Last used backup directory is remembered for convenience
+  - Backup filename format: `remarkable-templates-backup-YYYYMMDD-HHMMSS.zip`
+  - Backups survive reMarkable software updates and device resets
+  - ZIP format provides cross-platform compatibility (Windows, macOS, Linux)
+  - Compressed archives save disk space and are portable across systems
+  - Backup success dialog shows file size, location, and filename
+  - Users can store backups anywhere (cloud sync folders, external drives, etc.)
+
+### Fixed
+- Shell command escaping for filenames with spaces and special characters
+  - Backup and sync operations now properly handle template files with spaces in their names
+  - All SSH file operations use proper shell escaping to prevent command injection
+
 ## [0.1.0] - 2026-01-27
 
 Initial release of Remarkable Template Manager - a desktop application for managing templates on your reMarkable device.

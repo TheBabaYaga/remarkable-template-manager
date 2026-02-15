@@ -9,8 +9,9 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Version string       `json:"version"`
-	Device  DeviceConfig `json:"device"`
+	Version       string       `json:"version"`
+	Device        DeviceConfig `json:"device"`
+	LastBackupDir string       `json:"lastBackupDir,omitempty"`
 }
 
 // DeviceConfig represents the device connection configuration

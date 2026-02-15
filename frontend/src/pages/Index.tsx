@@ -8,9 +8,10 @@ import SSHKeySelectionDialog from "@/components/SSHKeySelectionDialog";
 import SimplifiedSetupDialog from "@/components/SimplifiedSetupDialog";
 import ConnectionLostDialog from "@/components/ConnectionLostDialog";
 import SyncSuccessDialog from "@/components/SyncSuccessDialog";
+import BackupSuccessDialog from "@/components/BackupSuccessDialog";
 import SupportDialog from "@/components/SupportDialog";
 import TemplateList, { Template, SelectedFileInfo } from "@/components/TemplateList";
-import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, SyncTemplates, RebootDevice, GetVersion, LoadConfig, SaveConfig, DeleteConfig } from "wailsjs/go/main/App";
+import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, SyncTemplates, RebootDevice, GetVersion, LoadConfig, SaveConfig, DeleteConfig, SelectBackupDirectory, SaveLastBackupDirectory } from "wailsjs/go/main/App";
 import { main } from "wailsjs/go/models";
 import { mapDeviceTemplatesToTemplates, removeFileExtension } from "@/lib/template-utils";
 
@@ -35,6 +36,7 @@ const Index = () => {
   const [connectionLost, setConnectionLost] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [syncSuccessDialog, setSyncSuccessDialog] = useState<{ open: boolean; count: number }>({ open: false, count: 0 });
+  const [backupSuccessDialog, setBackupSuccessDialog] = useState<{ open: boolean; filePath: string; sizeBytes: number }>({ open: false, filePath: "", sizeBytes: 0 });
   const [version, setVersion] = useState<string>("");
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
   const [savedConfig, setSavedConfig] = useState<SavedConfig | null>(null);
@@ -268,8 +270,28 @@ const Index = () => {
 
   const handleBackup = async () => {
     try {
-      const backupPath = await BackupTemplates();
-      console.log("Backup completed:", backupPath);
+      // Ask user to select backup directory
+      const selectedDir = await SelectBackupDirectory();
+      
+      // User cancelled the dialog
+      if (!selectedDir) {
+        return;
+      }
+
+      // Perform backup
+      const result = await BackupTemplates(selectedDir);
+      
+      // Save the directory for next time
+      await SaveLastBackupDirectory(selectedDir);
+      
+      // Show success dialog
+      setBackupSuccessDialog({
+        open: true,
+        filePath: result.filePath,
+        sizeBytes: result.sizeBytes,
+      });
+      
+      console.log("Backup completed:", result);
     } catch (error) {
       console.error("Backup failed:", error);
       throw error; // Re-throw so TemplateList can handle the error state
@@ -515,6 +537,14 @@ const Index = () => {
         templateCount={syncSuccessDialog.count}
         onReboot={handleReboot}
         onClose={() => setSyncSuccessDialog({ open: false, count: 0 })}
+      />
+
+      {/* Backup Success Dialog */}
+      <BackupSuccessDialog
+        open={backupSuccessDialog.open}
+        filePath={backupSuccessDialog.filePath}
+        sizeBytes={backupSuccessDialog.sizeBytes}
+        onClose={() => setBackupSuccessDialog({ open: false, filePath: "", sizeBytes: 0 })}
       />
 
       <SupportDialog

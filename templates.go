@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -36,99 +38,79 @@ func (a *App) FetchTemplates() ([]DeviceTemplate, error) {
 	return data.Templates, nil
 }
 
-// BackupTemplates creates a backup of the templates directory on the reMarkable device
-func (a *App) BackupTemplates() (string, error) {
+// BackupTemplates creates a compressed backup of the templates directory locally
+func (a *App) BackupTemplates(targetDir string) (*BackupResult, error) {
 	log.Println("[Backup] Starting backup process...")
 
 	if a.sshClient == nil {
 		log.Println("[Backup] ERROR: Not connected to reMarkable device")
-		return "", fmt.Errorf("not connected to reMarkable device")
+		return nil, fmt.Errorf("not connected to reMarkable device")
 	}
 
-	// Generate backup directory name: backup_YYYYMMDD_HHMMSS
-	timestamp := time.Now().Format("20060102_150405")
-	backupDir := fmt.Sprintf("/usr/share/remarkable/templates_backup/backup_%s", timestamp)
-	log.Printf("[Backup] Backup directory: %s", backupDir)
-
-	// Check if source directory exists
+	// Check if source directory exists on device
 	checkSession, err := a.sshClient.NewSession()
 	if err != nil {
-		log.Printf("[Backup] ERROR: Failed to create SSH session for check: %v", err)
-		return "", fmt.Errorf("failed to create SSH session: %w", err)
+		log.Printf("[Backup] ERROR: Failed to create SSH session: %v", err)
+		return nil, fmt.Errorf("failed to create SSH session: %w", err)
 	}
-
 	output, err := checkSession.CombinedOutput("test -d /usr/share/remarkable/templates && echo 'exists' || echo 'missing'")
 	checkSession.Close()
+	if err != nil || strings.TrimSpace(string(output)) != "exists" {
+		log.Printf("[Backup] ERROR: Templates directory not found on device")
+		return nil, fmt.Errorf("templates directory not found on device")
+	}
+	log.Println("[Backup] Templates directory verified on device")
+
+	// Create temporary directory for download
+	tempDir, err := os.MkdirTemp("", "remarkable-backup-*")
 	if err != nil {
-		log.Printf("[Backup] WARNING: Failed to check source directory: %v", err)
-	} else {
-		log.Printf("[Backup] Source directory check: %s", strings.TrimSpace(string(output)))
+		log.Printf("[Backup] ERROR: Failed to create temp directory: %v", err)
+		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up temp directory
+	log.Printf("[Backup] Created temporary directory: %s", tempDir)
+
+	// Download templates directory from device
+	log.Println("[Backup] Downloading templates from device...")
+	templatesPath := "/usr/share/remarkable/templates"
+	localTemplatesPath := filepath.Join(tempDir, "templates")
+	
+	if err := a.downloadDirectoryRecursive(templatesPath, localTemplatesPath); err != nil {
+		log.Printf("[Backup] ERROR: Failed to download templates: %v", err)
+		return nil, fmt.Errorf("failed to download templates: %w", err)
+	}
+	log.Println("[Backup] Templates downloaded successfully")
+
+	// Generate backup filename
+	timestamp := time.Now().Format("20060102-150405")
+	backupFilename := fmt.Sprintf("remarkable-templates-backup-%s.zip", timestamp)
+	backupPath := filepath.Join(targetDir, backupFilename)
+	log.Printf("[Backup] Creating compressed backup at: %s", backupPath)
+
+	// Compress the downloaded directory
+	if err := compressDirectory(localTemplatesPath, backupPath); err != nil {
+		log.Printf("[Backup] ERROR: Failed to compress backup: %v", err)
+		return nil, fmt.Errorf("failed to compress backup: %w", err)
+	}
+	log.Println("[Backup] Compression completed successfully")
+
+	// Get file size for result
+	fileInfo, err := os.Stat(backupPath)
+	if err != nil {
+		log.Printf("[Backup] WARNING: Failed to get backup file size: %v", err)
+		return &BackupResult{
+			FilePath:  backupPath,
+			SizeBytes: 0,
+		}, nil
 	}
 
-	// Create backup directory first
-	log.Println("[Backup] Creating backup directory...")
-	mkdirSession, err := a.sshClient.NewSession()
-	if err != nil {
-		log.Printf("[Backup] ERROR: Failed to create SSH session for mkdir: %v", err)
-		return "", fmt.Errorf("failed to create SSH session: %w", err)
-	}
-	mkdirCmd := "mkdir -p /usr/share/remarkable/templates_backup"
-	mkdirOutput, err := mkdirSession.CombinedOutput(mkdirCmd)
-	mkdirSession.Close()
-	if err != nil {
-		log.Printf("[Backup] ERROR: Failed to create backup directory: %v, output: %s", err, string(mkdirOutput))
-		return "", fmt.Errorf("failed to create backup directory: %w, output: %s", err, string(mkdirOutput))
-	}
-	log.Printf("[Backup] Backup directory created, output: %s", string(mkdirOutput))
-
-	// Check if templates directory exists and get its size
-	checkSession2, err := a.sshClient.NewSession()
-	if err != nil {
-		log.Printf("[Backup] WARNING: Failed to create session for size check: %v", err)
-	} else {
-		sizeOutput, err := checkSession2.CombinedOutput("du -sh /usr/share/remarkable/templates 2>&1")
-		checkSession2.Close()
-		if err != nil {
-			log.Printf("[Backup] WARNING: Failed to get templates size: %v, output: %s", err, string(sizeOutput))
-		} else {
-			log.Printf("[Backup] Templates directory size: %s", strings.TrimSpace(string(sizeOutput)))
-		}
+	result := &BackupResult{
+		FilePath:  backupPath,
+		SizeBytes: fileInfo.Size(),
 	}
 
-	// Copy templates
-	log.Println("[Backup] Copying templates...")
-	cpCmd := fmt.Sprintf("cp -r /usr/share/remarkable/templates %s", backupDir)
-	log.Printf("[Backup] Executing command: %s", cpCmd)
-
-	cpSession, err := a.sshClient.NewSession()
-	if err != nil {
-		log.Printf("[Backup] ERROR: Failed to create SSH session for copy: %v", err)
-		return "", fmt.Errorf("failed to create SSH session for copy: %w", err)
-	}
-	cpOutput, err := cpSession.CombinedOutput(cpCmd)
-	cpSession.Close()
-	if err != nil {
-		log.Printf("[Backup] ERROR: Failed to copy templates: %v, output: %s", err, string(cpOutput))
-		return "", fmt.Errorf("failed to backup templates: %w, output: %s", err, string(cpOutput))
-	}
-	log.Printf("[Backup] Copy command output: %s", string(cpOutput))
-
-	// Verify backup was created
-	verifySession, err := a.sshClient.NewSession()
-	if err != nil {
-		log.Printf("[Backup] WARNING: Failed to create session for verification: %v", err)
-	} else {
-		verifyOutput, err := verifySession.CombinedOutput(fmt.Sprintf("test -d %s && echo 'backup exists' || echo 'backup missing'", backupDir))
-		verifySession.Close()
-		if err != nil {
-			log.Printf("[Backup] WARNING: Failed to verify backup: %v, output: %s", err, string(verifyOutput))
-		} else {
-			log.Printf("[Backup] Backup verification: %s", strings.TrimSpace(string(verifyOutput)))
-		}
-	}
-
-	log.Printf("[Backup] SUCCESS: Backup completed at %s", backupDir)
-	return backupDir, nil
+	log.Printf("[Backup] SUCCESS: Backup completed at %s (size: %d bytes)", backupPath, result.SizeBytes)
+	return result, nil
 }
 
 // SyncTemplates uploads new templates to the device and updates templates.json

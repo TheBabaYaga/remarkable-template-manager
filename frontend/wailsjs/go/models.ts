@@ -1,5 +1,19 @@
 export namespace main {
 	
+	export class BackupResult {
+	    filePath: string;
+	    sizeBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filePath = source["filePath"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
+	}
 	export class DeviceConfig {
 	    ip: string;
 	    sshKeyPath: string;
@@ -17,6 +31,7 @@ export namespace main {
 	export class Config {
 	    version: string;
 	    device: DeviceConfig;
+	    lastBackupDir?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -26,6 +41,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.version = source["version"];
 	        this.device = this.convertValues(source["device"], DeviceConfig);
+	        this.lastBackupDir = source["lastBackupDir"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

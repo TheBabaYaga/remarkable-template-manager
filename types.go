@@ -32,3 +32,9 @@ type SyncTemplate struct {
 	Filename  string `json:"filename"`
 	LocalPath string `json:"localPath"`
 }
+
+// BackupResult contains information about a completed backup
+type BackupResult struct {
+	FilePath  string `json:"filePath"`
+	SizeBytes int64  `json:"sizeBytes"`
+}
