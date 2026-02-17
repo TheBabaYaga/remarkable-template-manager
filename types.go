@@ -38,3 +38,10 @@ type BackupResult struct {
 	FilePath  string `json:"filePath"`
 	SizeBytes int64  `json:"sizeBytes"`
 }
+
+// RestoreResult contains information about a completed restore
+type RestoreResult struct {
+	FilesRestored  int    `json:"filesRestored"`
+	BackupLocation string `json:"backupLocation"` // Location of old templates on device
+	SizeBytes      int64  `json:"sizeBytes"`
+}

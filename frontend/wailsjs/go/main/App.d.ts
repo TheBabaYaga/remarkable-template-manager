@@ -30,11 +30,15 @@ export function LoadConfig():Promise<main.Config>;
 
 export function RebootDevice():Promise<void>;
 
+export function RestoreTemplates(arg1:string):Promise<main.RestoreResult>;
+
 export function SaveConfig(arg1:string,arg2:string):Promise<void>;
 
 export function SaveLastBackupDirectory(arg1:string):Promise<void>;
 
 export function SelectBackupDirectory():Promise<string>;
+
+export function SelectBackupFile():Promise<string>;
 
 export function SelectTemplateFile():Promise<main.SelectedFile>;
 

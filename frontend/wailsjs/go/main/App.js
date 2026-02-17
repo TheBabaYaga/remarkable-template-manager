@@ -58,6 +58,10 @@ export function RebootDevice() {
   return window['go']['main']['App']['RebootDevice']();
 }
 
+export function RestoreTemplates(arg1) {
+  return window['go']['main']['App']['RestoreTemplates'](arg1);
+}
+
 export function SaveConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveConfig'](arg1, arg2);
 }
@@ -68,6 +72,10 @@ export function SaveLastBackupDirectory(arg1) {
 
 export function SelectBackupDirectory() {
   return window['go']['main']['App']['SelectBackupDirectory']();
+}
+
+export function SelectBackupFile() {
+  return window['go']['main']['App']['SelectBackupFile']();
 }
 
 export function SelectTemplateFile() {

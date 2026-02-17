@@ -83,6 +83,22 @@ export namespace main {
 	        this.categories = source["categories"];
 	    }
 	}
+	export class RestoreResult {
+	    filesRestored: number;
+	    backupLocation: string;
+	    sizeBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RestoreResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filesRestored = source["filesRestored"];
+	        this.backupLocation = source["backupLocation"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
+	}
 	export class SSHKey {
 	    name: string;
 	    path: string;

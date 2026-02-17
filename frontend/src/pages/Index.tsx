@@ -9,9 +9,10 @@ import SimplifiedSetupDialog from "@/components/SimplifiedSetupDialog";
 import ConnectionLostDialog from "@/components/ConnectionLostDialog";
 import SyncSuccessDialog from "@/components/SyncSuccessDialog";
 import BackupSuccessDialog from "@/components/BackupSuccessDialog";
+import RestoreSuccessDialog from "@/components/RestoreSuccessDialog";
 import SupportDialog from "@/components/SupportDialog";
 import TemplateList, { Template, SelectedFileInfo } from "@/components/TemplateList";
-import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, SyncTemplates, RebootDevice, GetVersion, LoadConfig, SaveConfig, DeleteConfig, SelectBackupDirectory, SaveLastBackupDirectory } from "wailsjs/go/main/App";
+import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, RestoreTemplates, SelectBackupFile, SyncTemplates, RebootDevice, GetVersion, LoadConfig, SaveConfig, DeleteConfig, SelectBackupDirectory, SaveLastBackupDirectory } from "wailsjs/go/main/App";
 import { main } from "wailsjs/go/models";
 import { mapDeviceTemplatesToTemplates, removeFileExtension } from "@/lib/template-utils";
 
@@ -37,6 +38,7 @@ const Index = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [syncSuccessDialog, setSyncSuccessDialog] = useState<{ open: boolean; count: number }>({ open: false, count: 0 });
   const [backupSuccessDialog, setBackupSuccessDialog] = useState<{ open: boolean; filePath: string; sizeBytes: number }>({ open: false, filePath: "", sizeBytes: 0 });
+  const [restoreSuccessDialog, setRestoreSuccessDialog] = useState<{ open: boolean; filesRestored: number; backupLocation: string; sizeBytes: number }>({ open: false, filesRestored: 0, backupLocation: "", sizeBytes: 0 });
   const [version, setVersion] = useState<string>("");
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
   const [savedConfig, setSavedConfig] = useState<SavedConfig | null>(null);
@@ -298,6 +300,41 @@ const Index = () => {
     }
   };
 
+  const handleRestore = async () => {
+    try {
+      // Ask user to select backup file
+      const selectedFile = await SelectBackupFile();
+      
+      // User cancelled the dialog
+      if (!selectedFile) {
+        return;
+      }
+
+      // Perform restore
+      const result = await RestoreTemplates(selectedFile);
+      
+      // Show success dialog
+      setRestoreSuccessDialog({
+        open: true,
+        filesRestored: result.filesRestored,
+        backupLocation: result.backupLocation,
+        sizeBytes: result.sizeBytes,
+      });
+      
+      // Refresh templates from device
+      const templates = await FetchTemplates();
+      setConnection(prev => prev ? {
+        ...prev,
+        templates: mapDeviceTemplatesToTemplates(templates),
+      } : null);
+      
+      console.log("Restore completed:", result);
+    } catch (error) {
+      console.error("Restore failed:", error);
+      throw error; // Re-throw so TemplateList can handle the error state
+    }
+  };
+
   const handleSyncSuccess = (count: number) => {
     setSyncSuccessDialog({ open: true, count });
   };
@@ -427,6 +464,7 @@ const Index = () => {
                 templates={connection.templates} 
                 onAddTemplate={handleAddTemplate}
                 onBackup={handleBackup}
+                onRestore={handleRestore}
                 onSync={handleSync}
                 onUpdateTemplateName={handleUpdateTemplateName}
                 onSyncSuccess={handleSyncSuccess}
@@ -545,6 +583,16 @@ const Index = () => {
         filePath={backupSuccessDialog.filePath}
         sizeBytes={backupSuccessDialog.sizeBytes}
         onClose={() => setBackupSuccessDialog({ open: false, filePath: "", sizeBytes: 0 })}
+      />
+
+      {/* Restore Success Dialog */}
+      <RestoreSuccessDialog
+        open={restoreSuccessDialog.open}
+        filesRestored={restoreSuccessDialog.filesRestored}
+        backupLocation={restoreSuccessDialog.backupLocation}
+        sizeBytes={restoreSuccessDialog.sizeBytes}
+        onReboot={handleReboot}
+        onClose={() => setRestoreSuccessDialog({ open: false, filesRestored: 0, backupLocation: "", sizeBytes: 0 })}
       />
 
       <SupportDialog
