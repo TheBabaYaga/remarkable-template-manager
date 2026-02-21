@@ -76,12 +76,16 @@ Post-connection menu with options for Backup, Restore, and Manage Templates.
 
 **8. Template Management**
 ![Template Management](screens/8.%20template-management-screen.png)
-Browse all templates on your device. Unsynced templates appear at the top with editable names, synced templates are shown below with landscape indicators.
+Browse all templates on your device with landscape indicators. Use "Add new template..." to upload SVG or PNG files.
+
+**9. Pending Changes**
+![Pending Changes](screens/9.%20pending-changes.png)
+Unsynced templates and pending deletions are highlighted at the top. Click "Sync" to upload new templates and apply deletions in one operation.
 
 ### Reconnecting
 
-**9. Saved Configuration**
-![Saved Configuration](screens/9.%20saved-configuration-reconnect.png)
+**10. Saved Configuration**
+![Saved Configuration](screens/10.%20saved-configuration-reconnect.png)
 Reconnect to a previously configured device with one click, or use "Different Device" / "Clear Saved" to start fresh.
 
 ## Project Structure

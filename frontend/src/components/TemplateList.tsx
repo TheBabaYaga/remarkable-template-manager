@@ -377,10 +377,34 @@ const TemplateList = ({
                 </motion.div>
               ))}
 
-              {/* Divider between unsynced and synced */}
-              {unsyncedTemplates.length > 0 &&
-                (syncedTemplates.length > 0 ||
-                  deletionPendingTemplates.length > 0) && (
+              {/* Deletion pending templates */}
+              {deletionPendingTemplates.map((template, index) => (
+                <motion.div
+                  key={`${template.filename}-deletion`}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{
+                    duration: 0.2,
+                    delay: (unsyncedTemplates.length + index) * 0.02,
+                  }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted/50 bg-red-500/10 border border-red-500/30"
+                >
+                  <FileText
+                    className={`w-5 h-5 flex-shrink-0 text-red-600 dark:text-red-400 ${template.landscape ? "rotate-90" : ""}`}
+                  />
+                  <span className="text-sm flex-1 line-through text-muted-foreground">
+                    {template.name}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 flex-shrink-0">
+                    Pending deletion
+                  </span>
+                </motion.div>
+              ))}
+
+              {/* Divider between pending changes and on-device templates */}
+              {(unsyncedTemplates.length > 0 ||
+                deletionPendingTemplates.length > 0) &&
+                syncedTemplates.length > 0 && (
                   <div className="flex items-center gap-2 py-2">
                     <div className="flex-1 h-px bg-border" />
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -398,7 +422,11 @@ const TemplateList = ({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{
                     duration: 0.2,
-                    delay: (unsyncedTemplates.length + index) * 0.02,
+                    delay:
+                      (unsyncedTemplates.length +
+                        deletionPendingTemplates.length +
+                        index) *
+                      0.02,
                   }}
                   className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted/50"
                 >
@@ -420,47 +448,6 @@ const TemplateList = ({
                   )}
                 </motion.div>
               ))}
-
-              {/* Deletion pending templates */}
-              {deletionPendingTemplates.length > 0 && (
-                <>
-                  {syncedTemplates.length > 0 && (
-                    <div className="flex items-center gap-2 py-2">
-                      <div className="flex-1 h-px bg-border" />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Pending Deletion
-                      </span>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-                  )}
-                  {deletionPendingTemplates.map((template, index) => (
-                    <motion.div
-                      key={`${template.filename}-deletion`}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{
-                        duration: 0.2,
-                        delay:
-                          (unsyncedTemplates.length +
-                            syncedTemplates.length +
-                            index) *
-                          0.02,
-                      }}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted/50 bg-red-500/10 border border-red-500/30"
-                    >
-                      <FileText
-                        className={`w-5 h-5 flex-shrink-0 text-red-600 dark:text-red-400 ${template.landscape ? "rotate-90" : ""}`}
-                      />
-                      <span className="text-sm flex-1 line-through text-muted-foreground">
-                        {template.name}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 flex-shrink-0">
-                        Pending deletion
-                      </span>
-                    </motion.div>
-                  ))}
-                </>
-              )}
             </div>
           </ScrollArea>
 
