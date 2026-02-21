@@ -53,6 +53,8 @@ sequenceDiagram
 - `app.go`: Exposes configuration methods to frontend via Wails
   - `LoadConfig()`: Loads saved configuration on startup
   - `SaveConfig(ip, keyPath)`: Saves connection details after successful connection
+  - `SaveLastBackupDirectory(dir)`: Persists last backup directory to config
+  - `GetLastBackupDirectory()`: Retrieves last backup directory from config
   - `DeleteConfig()`: Removes saved configuration
   - `GetConfigPath()`: Returns the config file path for debugging
 
@@ -87,7 +89,8 @@ The configuration file uses JSON format for simplicity and native Go support:
   "device": {
     "ip": "10.11.99.1",
     "sshKeyPath": "/Users/username/.ssh/remarkable"
-  }
+  },
+  "lastBackupDir": "/Users/username/Documents/backups"
 }
 ```
 
@@ -95,6 +98,7 @@ The configuration file uses JSON format for simplicity and native Go support:
 - `version`: Configuration schema version (for future migrations)
 - `device.ip`: IP address of the reMarkable device
 - `device.sshKeyPath`: Absolute path to the SSH private key file
+- `lastBackupDir`: Last directory used for template backups (remembered for convenience, optional)
 
 ### Security Considerations
 
@@ -166,8 +170,9 @@ The configuration system is designed to gracefully handle errors:
 
 ```go
 type Config struct {
-    Version string       `json:"version"`
-    Device  DeviceConfig `json:"device"`
+    Version       string       `json:"version"`
+    Device        DeviceConfig `json:"device"`
+    LastBackupDir string       `json:"lastBackupDir,omitempty"`
 }
 
 type DeviceConfig struct {
@@ -205,11 +210,8 @@ const handleSSHConnect = async (keyPath: string, ip: string) => {
 Potential improvements for future versions:
 
 1. **Multiple Device Profiles**: Support saving and switching between multiple reMarkable devices
-2. **Auto-reconnect**: Automatically attempt reconnection if connection drops
-3. **Config Migration**: Handle schema changes between versions
-4. **Cloud Backup**: Optional backup of configuration to cloud storage
-5. **SSH Key Management**: Generate and manage SSH keys from within the app
-6. **Connection History**: Track and display connection history
+2. **Config Migration**: Handle schema changes between versions
+3. **Connection History**: Track and display connection history
 
 ## Troubleshooting
 
