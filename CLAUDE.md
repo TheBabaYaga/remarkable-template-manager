@@ -77,3 +77,11 @@ All public methods on `App` are automatically exposed to the frontend via Wails 
 - Template metadata in `templates.json` file
 - Root filesystem auto-remounted read-write on connection
 - Device reboot required for template changes to appear in UI
+
+## Detailed Documentation
+
+See the `docs/` directory for in-depth documentation:
+
+- **[docs/architecture.md](docs/architecture.md)**: Backend module responsibilities, frontend component structure, data flow
+- **[docs/device-integration.md](docs/device-integration.md)**: SSH connection details, filesystem layout, template format specs
+- **[docs/configuration.md](docs/configuration.md)**: Config persistence, file format, platform-specific paths
