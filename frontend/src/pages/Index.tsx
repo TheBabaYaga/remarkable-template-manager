@@ -17,6 +17,7 @@ import ConnectionLostDialog from "@/components/ConnectionLostDialog";
 import SyncSuccessDialog from "@/components/SyncSuccessDialog";
 import BackupSuccessDialog from "@/components/BackupSuccessDialog";
 import RestoreSuccessDialog from "@/components/RestoreSuccessDialog";
+import LoadingOverlay from "@/components/LoadingOverlay";
 import SupportDialog from "@/components/SupportDialog";
 import ActionMenu from "@/components/ActionMenu";
 import TemplateList, {
@@ -84,6 +85,9 @@ const Index = () => {
     sizeBytes: number;
   }>({ open: false, filesRestored: 0, backupLocation: "", sizeBytes: 0 });
   const [version, setVersion] = useState<string>("");
+  const [loadingOperation, setLoadingOperation] = useState<
+    null | "backup" | "restore"
+  >(null);
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
   const [savedConfig, setSavedConfig] = useState<SavedConfig | null>(null);
 
@@ -357,13 +361,17 @@ const Index = () => {
         return;
       }
 
+      // Show loading overlay
+      setLoadingOperation("backup");
+
       // Perform backup
       const result = await BackupTemplates(selectedDir);
 
       // Save the directory for next time
       await SaveLastBackupDirectory(selectedDir);
 
-      // Show success dialog
+      // Dismiss loading overlay and show success dialog
+      setLoadingOperation(null);
       setBackupSuccessDialog({
         open: true,
         filePath: result.filePath,
@@ -372,6 +380,7 @@ const Index = () => {
 
       console.log("Backup completed:", result);
     } catch (error) {
+      setLoadingOperation(null);
       console.error("Backup failed:", error);
       throw error; // Re-throw so TemplateList can handle the error state
     }
@@ -387,16 +396,11 @@ const Index = () => {
         return;
       }
 
+      // Show loading overlay
+      setLoadingOperation("restore");
+
       // Perform restore
       const result = await RestoreTemplates(selectedFile);
-
-      // Show success dialog
-      setRestoreSuccessDialog({
-        open: true,
-        filesRestored: result.filesRestored,
-        backupLocation: result.backupLocation,
-        sizeBytes: result.sizeBytes,
-      });
 
       // Refresh templates from device
       const templates = await FetchTemplates();
@@ -409,8 +413,18 @@ const Index = () => {
           : null,
       );
 
+      // Dismiss loading overlay and show success dialog
+      setLoadingOperation(null);
+      setRestoreSuccessDialog({
+        open: true,
+        filesRestored: result.filesRestored,
+        backupLocation: result.backupLocation,
+        sizeBytes: result.sizeBytes,
+      });
+
       console.log("Restore completed:", result);
     } catch (error) {
+      setLoadingOperation(null);
       console.error("Restore failed:", error);
       throw error; // Re-throw so TemplateList can handle the error state
     }
@@ -755,6 +769,16 @@ const Index = () => {
             backupLocation: "",
             sizeBytes: 0,
           })
+        }
+      />
+
+      {/* Loading Overlay for Backup/Restore */}
+      <LoadingOverlay
+        open={loadingOperation !== null}
+        message={
+          loadingOperation === "backup"
+            ? "Backing up templates..."
+            : "Restoring templates..."
         }
       />
 
