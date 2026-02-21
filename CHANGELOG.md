@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-02-21
 
 ### Added
 - Simplified setup workflow for non-technical users
@@ -24,7 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validates backup structure and `templates.json` before applying
   - Restore success dialog with reboot prompt
 - Post-connection action menu with Backup, Restore, and Manage Templates options
+- Blocking loading overlay during backup and restore operations
+  - Non-dismissable overlay prevents interaction while operation is in progress
+  - Shows spinner with contextual message ("Backing up templates..." / "Restoring templates...")
 - Detailed documentation in `docs/` directory (architecture, device integration, configuration)
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec/) for structured development workflow
 
 ### Changed
 - **BREAKING:** Backup system completely redesigned to store backups locally instead of on the reMarkable device
@@ -38,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backup success dialog shows file size, location, and filename
   - Users can store backups anywhere (cloud sync folders, external drives, etc.)
 - Redesigned connection flow with intermediate setup choice screen (Simplified vs Advanced)
+- Redesigned post-connection layout with side-by-side horizontal arrangement (device info on left, actions/templates on right)
 - Unified pending changes display — unsynced templates and pending deletions shown together at the top of the template list
 - Refactored dialog components into reusable UI primitives (base alert dialog, IP address input, password input)
 
@@ -109,5 +114,6 @@ Initial release of Remarkable Template Manager - a desktop application for manag
 - Template metadata management via `templates.json`
 - Comprehensive file and connection validation
 
-[Unreleased]: https://github.com/TheBabaYaga/remarkable-template-manager/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/TheBabaYaga/remarkable-template-manager/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/TheBabaYaga/remarkable-template-manager/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/TheBabaYaga/remarkable-template-manager/releases/tag/v0.1.0
