@@ -16,7 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Save and load connection configuration (SSH key, device IP, and connection preferences)
   - Automatically restore previous connection settings on app launch
   - Persist SSH key selection and device IP address
-  - Streamlined reconnection workflow for returning users
+  - One-click reconnect to previously configured device
+  - Options to connect to a different device or clear saved configuration
+- Restore templates from a backup ZIP file
+  - Select a backup file via native file picker
+  - Current templates on device are renamed as a safety backup before restoring
+  - Validates backup structure and `templates.json` before applying
+  - Restore success dialog with reboot prompt
+- Post-connection action menu with Backup, Restore, and Manage Templates options
+- Detailed documentation in `docs/` directory (architecture, device integration, configuration)
 
 ### Changed
 - **BREAKING:** Backup system completely redesigned to store backups locally instead of on the reMarkable device
@@ -29,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compressed archives save disk space and are portable across systems
   - Backup success dialog shows file size, location, and filename
   - Users can store backups anywhere (cloud sync folders, external drives, etc.)
+- Redesigned connection flow with intermediate setup choice screen (Simplified vs Advanced)
+- Unified pending changes display — unsynced templates and pending deletions shown together at the top of the template list
+- Refactored dialog components into reusable UI primitives (base alert dialog, IP address input, password input)
 
 ### Fixed
 - Shell command escaping for filenames with spaces and special characters
