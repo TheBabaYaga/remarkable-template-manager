@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle, Unplug, Loader2, Heart } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  Unplug,
+  Loader2,
+  Heart,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RemarkableDevice from "@/components/RemarkableDevice";
 import SetupChoiceDialog from "@/components/SetupChoiceDialog";
@@ -11,12 +18,36 @@ import SyncSuccessDialog from "@/components/SyncSuccessDialog";
 import BackupSuccessDialog from "@/components/BackupSuccessDialog";
 import RestoreSuccessDialog from "@/components/RestoreSuccessDialog";
 import SupportDialog from "@/components/SupportDialog";
-import TemplateList, { Template, SelectedFileInfo } from "@/components/TemplateList";
-import { FetchTemplates, DisconnectSSH, ConnectSSH, CheckConnection, BackupTemplates, RestoreTemplates, SelectBackupFile, SyncTemplates, RebootDevice, GetVersion, LoadConfig, SaveConfig, DeleteConfig, SelectBackupDirectory, SaveLastBackupDirectory } from "wailsjs/go/main/App";
+import ActionMenu from "@/components/ActionMenu";
+import TemplateList, {
+  Template,
+  SelectedFileInfo,
+} from "@/components/TemplateList";
+import {
+  FetchTemplates,
+  DisconnectSSH,
+  ConnectSSH,
+  CheckConnection,
+  BackupTemplates,
+  RestoreTemplates,
+  SelectBackupFile,
+  SyncTemplates,
+  RebootDevice,
+  GetVersion,
+  LoadConfig,
+  SaveConfig,
+  DeleteConfig,
+  SelectBackupDirectory,
+  SaveLastBackupDirectory,
+} from "wailsjs/go/main/App";
 import { main } from "wailsjs/go/models";
-import { mapDeviceTemplatesToTemplates, removeFileExtension } from "@/lib/template-utils";
+import {
+  mapDeviceTemplatesToTemplates,
+  removeFileExtension,
+} from "@/lib/template-utils";
 
 type DialogState = "closed" | "setup-choice" | "ssh-select" | "simplified";
+type ViewState = "menu" | "templates";
 
 interface ConnectionInfo {
   method: "ssh";
@@ -32,21 +63,35 @@ interface SavedConfig {
 
 const Index = () => {
   const [dialogState, setDialogState] = useState<DialogState>("closed");
+  const [view, setView] = useState<ViewState>("menu");
   const [connection, setConnection] = useState<ConnectionInfo | null>(null);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [connectionLost, setConnectionLost] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [syncSuccessDialog, setSyncSuccessDialog] = useState<{ open: boolean; count: number }>({ open: false, count: 0 });
-  const [backupSuccessDialog, setBackupSuccessDialog] = useState<{ open: boolean; filePath: string; sizeBytes: number }>({ open: false, filePath: "", sizeBytes: 0 });
-  const [restoreSuccessDialog, setRestoreSuccessDialog] = useState<{ open: boolean; filesRestored: number; backupLocation: string; sizeBytes: number }>({ open: false, filesRestored: 0, backupLocation: "", sizeBytes: 0 });
+  const [syncSuccessDialog, setSyncSuccessDialog] = useState<{
+    open: boolean;
+    count: number;
+  }>({ open: false, count: 0 });
+  const [backupSuccessDialog, setBackupSuccessDialog] = useState<{
+    open: boolean;
+    filePath: string;
+    sizeBytes: number;
+  }>({ open: false, filePath: "", sizeBytes: 0 });
+  const [restoreSuccessDialog, setRestoreSuccessDialog] = useState<{
+    open: boolean;
+    filesRestored: number;
+    backupLocation: string;
+    sizeBytes: number;
+  }>({ open: false, filesRestored: 0, backupLocation: "", sizeBytes: 0 });
   const [version, setVersion] = useState<string>("");
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
   const [savedConfig, setSavedConfig] = useState<SavedConfig | null>(null);
 
-
   // Fetch version on mount
   useEffect(() => {
-    GetVersion().then(setVersion).catch(() => setVersion("dev"));
+    GetVersion()
+      .then(setVersion)
+      .catch(() => setVersion("dev"));
   }, []);
 
   // Load saved config on mount
@@ -85,7 +130,7 @@ const Index = () => {
 
   const handleRetryConnection = useCallback(async () => {
     if (!connection || !connection.keyPath) return;
-    
+
     setIsRetrying(true);
     try {
       await ConnectSSH(connection.keyPath, connection.ip);
@@ -113,7 +158,11 @@ const Index = () => {
     setConnection(null);
   }, []);
 
-  const loadTemplatesFromDevice = async (method: "ssh", ip: string, keyPath?: string) => {
+  const loadTemplatesFromDevice = async (
+    method: "ssh",
+    ip: string,
+    keyPath?: string,
+  ) => {
     setIsLoadingTemplates(true);
     try {
       const templates = await FetchTemplates();
@@ -135,8 +184,9 @@ const Index = () => {
   const handleSSHConnect = async (keyPath: string, ip: string) => {
     console.log("Connected with SSH key:", { keyPath, ip });
     setDialogState("closed");
-    await loadTemplatesFromDevice("ssh", ip, keyPath);
-    
+    setConnection({ method: "ssh", ip, keyPath, templates: [] });
+    setView("menu");
+
     // Save config after successful connection
     try {
       await SaveConfig(ip, keyPath);
@@ -163,14 +213,21 @@ const Index = () => {
       console.error("Failed to disconnect:", error);
     }
     setConnection(null);
+    setView("menu");
   };
 
   const handleQuickConnect = async () => {
     if (!savedConfig) return;
-    
+
     try {
       await ConnectSSH(savedConfig.sshKeyPath, savedConfig.ip);
-      await loadTemplatesFromDevice("ssh", savedConfig.ip, savedConfig.sshKeyPath);
+      setConnection({
+        method: "ssh",
+        ip: savedConfig.ip,
+        keyPath: savedConfig.sshKeyPath,
+        templates: [],
+      });
+      setView("menu");
     } catch (error) {
       console.error("Quick connect failed:", error);
       // On failure, show the connection dialog
@@ -209,51 +266,61 @@ const Index = () => {
     if (!connection) return;
     setConnection({
       ...connection,
-      templates: connection.templates.map(t =>
-        filenames.includes(t.filename)
-          ? { ...t, deletionPending: true }
-          : t
+      templates: connection.templates.map((t) =>
+        filenames.includes(t.filename) ? { ...t, deletionPending: true } : t,
       ),
     });
   };
 
   const handleSync = async () => {
     if (!connection) return;
-    
+
     // Get unsynced templates with their local paths
-    const unsyncedTemplates = connection.templates.filter(t => t.synced === false && t.localPath);
+    const unsyncedTemplates = connection.templates.filter(
+      (t) => t.synced === false && t.localPath,
+    );
     // Get templates pending deletion
-    const deletionPendingTemplates = connection.templates.filter(t => t.deletionPending === true);
-    
-    if (unsyncedTemplates.length === 0 && deletionPendingTemplates.length === 0) return;
-    
+    const deletionPendingTemplates = connection.templates.filter(
+      (t) => t.deletionPending === true,
+    );
+
+    if (unsyncedTemplates.length === 0 && deletionPendingTemplates.length === 0)
+      return;
+
     // Store filenames that will be synced
-    const syncedFilenames = new Set(unsyncedTemplates.map(t => t.filename));
+    const syncedFilenames = new Set(unsyncedTemplates.map((t) => t.filename));
     // Store filenames that will be deleted
-    const deletedFilenames = new Set(deletionPendingTemplates.map(t => t.filename));
-    
+    const deletedFilenames = new Set(
+      deletionPendingTemplates.map((t) => t.filename),
+    );
+
     // Prepare sync data for backend
-    const syncData: main.SyncTemplate[] = unsyncedTemplates.map(t => ({
+    const syncData: main.SyncTemplate[] = unsyncedTemplates.map((t) => ({
       name: t.name,
       filename: t.filename,
       localPath: t.localPath!,
     }));
-    
+
     // Prepare deletion data
-    const deletionData: string[] = deletionPendingTemplates.map(t => t.filename);
-    
+    const deletionData: string[] = deletionPendingTemplates.map(
+      (t) => t.filename,
+    );
+
     // Call backend to sync (including deletions)
     await SyncTemplates(syncData, deletionData);
-    
+
     // Mark templates as synced and remove deletion pending, or remove deleted templates
     setConnection({
       ...connection,
       templates: connection.templates
-        .filter(t => !(t.deletionPending === true && deletedFilenames.has(t.filename)))
-        .map(t =>
+        .filter(
+          (t) =>
+            !(t.deletionPending === true && deletedFilenames.has(t.filename)),
+        )
+        .map((t) =>
           t.synced === false && syncedFilenames.has(t.filename)
             ? { ...t, synced: true, localPath: undefined }
-            : t
+            : t,
         ),
     });
   };
@@ -262,19 +329,29 @@ const Index = () => {
     if (!connection) return;
     setConnection({
       ...connection,
-      templates: connection.templates.map(t =>
+      templates: connection.templates.map((t) =>
         t.filename === filename && t.synced === false
           ? { ...t, name: newName }
-          : t
+          : t,
       ),
     });
+  };
+
+  const handleManageTemplates = async () => {
+    if (!connection) return;
+    await loadTemplatesFromDevice(
+      connection.method,
+      connection.ip,
+      connection.keyPath,
+    );
+    setView("templates");
   };
 
   const handleBackup = async () => {
     try {
       // Ask user to select backup directory
       const selectedDir = await SelectBackupDirectory();
-      
+
       // User cancelled the dialog
       if (!selectedDir) {
         return;
@@ -282,17 +359,17 @@ const Index = () => {
 
       // Perform backup
       const result = await BackupTemplates(selectedDir);
-      
+
       // Save the directory for next time
       await SaveLastBackupDirectory(selectedDir);
-      
+
       // Show success dialog
       setBackupSuccessDialog({
         open: true,
         filePath: result.filePath,
         sizeBytes: result.sizeBytes,
       });
-      
+
       console.log("Backup completed:", result);
     } catch (error) {
       console.error("Backup failed:", error);
@@ -304,7 +381,7 @@ const Index = () => {
     try {
       // Ask user to select backup file
       const selectedFile = await SelectBackupFile();
-      
+
       // User cancelled the dialog
       if (!selectedFile) {
         return;
@@ -312,7 +389,7 @@ const Index = () => {
 
       // Perform restore
       const result = await RestoreTemplates(selectedFile);
-      
+
       // Show success dialog
       setRestoreSuccessDialog({
         open: true,
@@ -320,14 +397,18 @@ const Index = () => {
         backupLocation: result.backupLocation,
         sizeBytes: result.sizeBytes,
       });
-      
+
       // Refresh templates from device
       const templates = await FetchTemplates();
-      setConnection(prev => prev ? {
-        ...prev,
-        templates: mapDeviceTemplatesToTemplates(templates),
-      } : null);
-      
+      setConnection((prev) =>
+        prev
+          ? {
+              ...prev,
+              templates: mapDeviceTemplatesToTemplates(templates),
+            }
+          : null,
+      );
+
       console.log("Restore completed:", result);
     } catch (error) {
       console.error("Restore failed:", error);
@@ -402,78 +483,140 @@ const Index = () => {
 
       {/* Main Content */}
       {isConnected ? (
-        <main className="flex items-center justify-center gap-8">
-          {/* Device Section */}
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-6">
-              <RemarkableDevice />
-            </div>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="space-y-3 mb-6"
-            >
-              <div className="flex items-center justify-center gap-2 text-primary mb-2">
-                <CheckCircle className="w-5 h-5" />
+        view === "menu" ? (
+          <main className="flex items-center justify-center gap-8">
+            {/* Device Section */}
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-6">
+                <RemarkableDevice />
               </div>
-              <h2 className="text-2xl font-serif font-medium text-foreground tracking-tight">
-                reMarkable connected
-              </h2>
-              <p className="text-muted-foreground text-base leading-relaxed">
-                Connected via SSH to{" "}
-                <span className="font-mono text-sm">{connection.ip}</span>
-              </p>
-            </motion.div>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              onClick={handleDisconnect}
-              className="gap-2"
-            >
-              <Unplug className="w-4 h-4" />
-              Disconnect
-            </Button>
-          </div>
-
-          {/* Connection Arrow */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
-            className="flex items-center"
-          >
-            <ArrowRight className="w-8 h-8 text-muted-foreground" />
-          </motion.div>
-
-          {/* Templates Section */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            {isLoadingTemplates ? (
-              <div className="flex items-center justify-center w-[400px] h-[420px]">
-                <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                  <span className="text-sm">Loading templates...</span>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="space-y-3 mb-6"
+              >
+                <div className="flex items-center justify-center gap-2 text-primary mb-2">
+                  <CheckCircle className="w-5 h-5" />
                 </div>
+                <h2 className="text-2xl font-serif font-medium text-foreground tracking-tight">
+                  reMarkable connected
+                </h2>
+                <p className="text-muted-foreground text-base leading-relaxed">
+                  Connected via SSH to{" "}
+                  <span className="font-mono text-sm">{connection.ip}</span>
+                </p>
+              </motion.div>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleDisconnect}
+                className="gap-2"
+              >
+                <Unplug className="w-4 h-4" />
+                Disconnect
+              </Button>
+            </div>
+
+            {/* Connection Arrow */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="flex items-center"
+            >
+              <ArrowRight className="w-8 h-8 text-muted-foreground" />
+            </motion.div>
+
+            {/* Action Menu */}
+            <ActionMenu
+              onBackup={handleBackup}
+              onRestore={handleRestore}
+              onManageTemplates={handleManageTemplates}
+            />
+          </main>
+        ) : (
+          <main className="flex items-center justify-center gap-8">
+            {/* Device Section */}
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-6">
+                <RemarkableDevice />
               </div>
-            ) : (
-              <TemplateList 
-                templates={connection.templates} 
-                onAddTemplate={handleAddTemplate}
-                onBackup={handleBackup}
-                onRestore={handleRestore}
-                onSync={handleSync}
-                onUpdateTemplateName={handleUpdateTemplateName}
-                onSyncSuccess={handleSyncSuccess}
-                onDeleteTemplates={handleDeleteTemplates}
-                onConnectionLost={handleConnectionLost}
-              />
-            )}
-          </motion.div>
-        </main>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="space-y-3 mb-6"
+              >
+                <div className="flex items-center justify-center gap-2 text-primary mb-2">
+                  <CheckCircle className="w-5 h-5" />
+                </div>
+                <h2 className="text-2xl font-serif font-medium text-foreground tracking-tight">
+                  reMarkable connected
+                </h2>
+                <p className="text-muted-foreground text-base leading-relaxed">
+                  Connected via SSH to{" "}
+                  <span className="font-mono text-sm">{connection.ip}</span>
+                </p>
+              </motion.div>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleDisconnect}
+                className="gap-2"
+              >
+                <Unplug className="w-4 h-4" />
+                Disconnect
+              </Button>
+            </div>
+
+            {/* Connection Arrow */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="flex items-center"
+            >
+              <ArrowRight className="w-8 h-8 text-muted-foreground" />
+            </motion.div>
+
+            {/* Templates Section */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="flex flex-col"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setView("menu")}
+                className="gap-1 self-start mb-2 text-muted-foreground"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to menu
+              </Button>
+              {isLoadingTemplates ? (
+                <div className="flex items-center justify-center w-[400px] h-[420px]">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                    <span className="text-sm">Loading templates...</span>
+                  </div>
+                </div>
+              ) : (
+                <TemplateList
+                  templates={connection.templates}
+                  onAddTemplate={handleAddTemplate}
+                  onSync={handleSync}
+                  onUpdateTemplateName={handleUpdateTemplateName}
+                  onSyncSuccess={handleSyncSuccess}
+                  onDeleteTemplates={handleDeleteTemplates}
+                  onConnectionLost={handleConnectionLost}
+                />
+              )}
+            </motion.div>
+          </main>
+        )
       ) : (
         <main className="flex flex-col items-center text-center max-w-sm w-full">
           {/* Device Illustration */}
@@ -506,21 +649,26 @@ const Index = () => {
             >
               {savedConfig ? (
                 <>
-                  <Button variant="connect" size="lg" onClick={handleQuickConnect} className="w-full max-w-xs">
+                  <Button
+                    variant="connect"
+                    size="lg"
+                    onClick={handleQuickConnect}
+                    className="w-full max-w-xs"
+                  >
                     Connect to {savedConfig.ip}
                   </Button>
                   <div className="flex gap-2 w-full max-w-xs">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setDialogState("ssh-select")}
                       className="flex-1"
                     >
                       Different Device
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={handleClearConfig}
                       className="flex-1"
                     >
@@ -529,7 +677,11 @@ const Index = () => {
                   </div>
                 </>
               ) : (
-                <Button variant="connect" size="lg" onClick={() => setDialogState("setup-choice")}>
+                <Button
+                  variant="connect"
+                  size="lg"
+                  onClick={() => setDialogState("setup-choice")}
+                >
                   Connect Device
                 </Button>
               )}
@@ -541,7 +693,9 @@ const Index = () => {
       {/* Setup Choice Dialog */}
       <SetupChoiceDialog
         open={dialogState === "setup-choice"}
-        onOpenChange={(open) => setDialogState(open ? "setup-choice" : "closed")}
+        onOpenChange={(open) =>
+          setDialogState(open ? "setup-choice" : "closed")
+        }
         onSelectSetup={handleSetupChoice}
       />
 
@@ -582,7 +736,9 @@ const Index = () => {
         open={backupSuccessDialog.open}
         filePath={backupSuccessDialog.filePath}
         sizeBytes={backupSuccessDialog.sizeBytes}
-        onClose={() => setBackupSuccessDialog({ open: false, filePath: "", sizeBytes: 0 })}
+        onClose={() =>
+          setBackupSuccessDialog({ open: false, filePath: "", sizeBytes: 0 })
+        }
       />
 
       {/* Restore Success Dialog */}
@@ -592,7 +748,14 @@ const Index = () => {
         backupLocation={restoreSuccessDialog.backupLocation}
         sizeBytes={restoreSuccessDialog.sizeBytes}
         onReboot={handleReboot}
-        onClose={() => setRestoreSuccessDialog({ open: false, filesRestored: 0, backupLocation: "", sizeBytes: 0 })}
+        onClose={() =>
+          setRestoreSuccessDialog({
+            open: false,
+            filesRestored: 0,
+            backupLocation: "",
+            sizeBytes: 0,
+          })
+        }
       />
 
       <SupportDialog

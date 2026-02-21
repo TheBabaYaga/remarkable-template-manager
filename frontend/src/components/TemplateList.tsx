@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Plus, Download, CheckCircle, CloudOff, RefreshCw, Loader2, Upload, Trash2, UploadCloud } from "lucide-react";
+import {
+  FileText,
+  Plus,
+  CheckCircle,
+  CloudOff,
+  Loader2,
+  Upload,
+  Trash2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -30,8 +38,6 @@ export interface SelectedFileInfo {
 interface TemplateListProps {
   templates: Template[];
   onAddTemplate?: (fileInfo: SelectedFileInfo) => void;
-  onBackup?: () => Promise<void>;
-  onRestore?: () => Promise<void>;
   onSync?: () => Promise<void>;
   onUpdateTemplateName?: (filename: string, newName: string) => void;
   onSyncSuccess?: (count: number) => void;
@@ -39,35 +45,46 @@ interface TemplateListProps {
   onConnectionLost?: () => void;
 }
 
-const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, onUpdateTemplateName, onSyncSuccess, onDeleteTemplates, onConnectionLost }: TemplateListProps) => {
-  const [backupState, setBackupState] = useState<"idle" | "backing-up" | "complete">("idle");
-  const [backupProgress, setBackupProgress] = useState(0);
-  const [currentBackupFile, setCurrentBackupFile] = useState("");
+const TemplateList = ({
+  templates,
+  onAddTemplate,
+  onSync,
+  onUpdateTemplateName,
+  onSyncSuccess,
+  onDeleteTemplates,
+  onConnectionLost,
+}: TemplateListProps) => {
   const [duplicateName, setDuplicateName] = useState<string | null>(null);
   const [invalidFilename, setInvalidFilename] = useState<string | null>(null);
   const [isAddingFile, setIsAddingFile] = useState(false);
-  
-  const [restoreState, setRestoreState] = useState<"idle" | "restoring" | "complete">("idle");
-  const [restoreProgress, setRestoreProgress] = useState(0);
-  const [currentRestoreFile, setCurrentRestoreFile] = useState("");
-  
-  const [syncState, setSyncState] = useState<"idle" | "syncing" | "complete">("idle");
+
+  const [syncState, setSyncState] = useState<"idle" | "syncing" | "complete">(
+    "idle",
+  );
   const [syncProgress, setSyncProgress] = useState(0);
   const [currentSyncFile, setCurrentSyncFile] = useState("");
   const [syncedCount, setSyncedCount] = useState(0);
-  
-  const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set());
 
-  const unsyncedTemplates = templates.filter(t => t.synced === false && !t.deletionPending);
-  const deletionPendingTemplates = templates.filter(t => t.deletionPending === true);
-  const syncedTemplates = templates.filter(t => t.synced !== false && !t.deletionPending);
+  const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const unsyncedTemplates = templates.filter(
+    (t) => t.synced === false && !t.deletionPending,
+  );
+  const deletionPendingTemplates = templates.filter(
+    (t) => t.deletionPending === true,
+  );
+  const syncedTemplates = templates.filter(
+    (t) => t.synced !== false && !t.deletionPending,
+  );
   const unsyncedCount = unsyncedTemplates.length;
   const deletionPendingCount = deletionPendingTemplates.length;
 
   const handleAddClick = async () => {
     try {
       const result = await SelectTemplateFile();
-      
+
       // User cancelled
       if (!result) {
         return;
@@ -75,162 +92,53 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
 
       // Remove file extension to get base name
       const baseName = removeFileExtension(result.name);
-      
+
       // Check for duplicates (case-insensitive)
-      const isDuplicate = templates.some(t => 
-        t.name.toLowerCase() === baseName.toLowerCase() ||
-        t.filename.toLowerCase() === baseName.toLowerCase()
+      const isDuplicate = templates.some(
+        (t) =>
+          t.name.toLowerCase() === baseName.toLowerCase() ||
+          t.filename.toLowerCase() === baseName.toLowerCase(),
       );
-      
+
       if (isDuplicate) {
         setDuplicateName(baseName);
         return;
       }
-      
+
       if (onAddTemplate) {
         setIsAddingFile(true);
         // Small delay to show loading state
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 300));
         onAddTemplate(result);
         setIsAddingFile(false);
       }
     } catch (error) {
       console.error("Failed to select file:", error);
       setIsAddingFile(false);
-      
+
       // Check if error is about invalid filename
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("invalid filename") || errorMessage.includes("spaces or special characters")) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes("invalid filename") ||
+        errorMessage.includes("spaces or special characters")
+      ) {
         // Extract filename from error message (format: "... Invalid filename: filename.png")
-        const fileNameMatch = errorMessage.match(/Invalid filename: ([^\\.]+\.(svg|png))/i);
-        const fileName = fileNameMatch ? fileNameMatch[1].trim() : "the selected file";
+        const fileNameMatch = errorMessage.match(
+          /Invalid filename: ([^\\.]+\.(svg|png))/i,
+        );
+        const fileName = fileNameMatch
+          ? fileNameMatch[1].trim()
+          : "the selected file";
         setInvalidFilename(fileName);
         return;
       }
     }
   };
 
-  const handleBackup = async () => {
-    if (!onBackup) return;
-    
-    // Check connection before starting backup
-    try {
-      await CheckConnection();
-    } catch (error) {
-      console.error("Connection check failed:", error);
-      if (onConnectionLost) {
-        onConnectionLost();
-      }
-      return;
-    }
-    
-    setBackupState("backing-up");
-    setBackupProgress(0);
-
-    // Simulate progress while the actual backup runs
-    const progressInterval = setInterval(() => {
-      setBackupProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 200);
-
-    // Show file names being backed up
-    let fileIndex = 0;
-    const fileInterval = setInterval(() => {
-      if (fileIndex < templates.length) {
-        setCurrentBackupFile(templates[fileIndex].name);
-        fileIndex++;
-      }
-    }, 150);
-
-    try {
-      await onBackup();
-      clearInterval(progressInterval);
-      clearInterval(fileInterval);
-      setBackupProgress(100);
-      setBackupState("complete");
-    } catch (error) {
-      console.error("Backup failed:", error);
-      clearInterval(progressInterval);
-      clearInterval(fileInterval);
-      setBackupState("idle");
-      return;
-    }
-
-    // Reset after showing completion
-    setTimeout(() => {
-      setBackupState("idle");
-      setBackupProgress(0);
-      setCurrentBackupFile("");
-    }, 2500);
-  };
-
-  const handleRestore = async () => {
-    if (!onRestore) return;
-    
-    // Check connection before starting restore
-    try {
-      await CheckConnection();
-    } catch (error) {
-      console.error("Connection check failed:", error);
-      if (onConnectionLost) {
-        onConnectionLost();
-      }
-      return;
-    }
-    
-    setRestoreState("restoring");
-    setRestoreProgress(0);
-
-    // Simulate progress while the actual restore runs
-    const progressInterval = setInterval(() => {
-      setRestoreProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 200);
-
-    // Show file names being restored
-    let fileIndex = 0;
-    const fileInterval = setInterval(() => {
-      if (fileIndex < templates.length) {
-        setCurrentRestoreFile(templates[fileIndex].name);
-        fileIndex++;
-      }
-    }, 150);
-
-    try {
-      await onRestore();
-      clearInterval(progressInterval);
-      clearInterval(fileInterval);
-      setRestoreProgress(100);
-      setRestoreState("complete");
-    } catch (error) {
-      console.error("Restore failed:", error);
-      clearInterval(progressInterval);
-      clearInterval(fileInterval);
-      setRestoreState("idle");
-      return;
-    }
-
-    // Reset after showing completion
-    setTimeout(() => {
-      setRestoreState("idle");
-      setRestoreProgress(0);
-      setCurrentRestoreFile("");
-    }, 2500);
-  };
-
   const handleSyncClick = async () => {
     if (!onSync || (unsyncedCount === 0 && deletionPendingCount === 0)) return;
-    
+
     // Check connection before starting sync
     try {
       await CheckConnection();
@@ -241,7 +149,7 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
       }
       return;
     }
-    
+
     // Store the count before sync starts (include both uploads and deletions)
     const countToSync = unsyncedCount + deletionPendingCount;
     setSyncedCount(countToSync);
@@ -250,7 +158,7 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
 
     // Simulate progress while the actual sync runs
     const progressInterval = setInterval(() => {
-      setSyncProgress(prev => {
+      setSyncProgress((prev) => {
         if (prev >= 90) {
           clearInterval(progressInterval);
           return 90;
@@ -260,7 +168,10 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
     }, 300);
 
     // Show file names being synced (both uploads and deletions)
-    const allPendingTemplates = [...unsyncedTemplates, ...deletionPendingTemplates];
+    const allPendingTemplates = [
+      ...unsyncedTemplates,
+      ...deletionPendingTemplates,
+    ];
     let fileIndex = 0;
     const fileInterval = setInterval(() => {
       if (fileIndex < allPendingTemplates.length) {
@@ -275,7 +186,7 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
       clearInterval(fileInterval);
       setSyncProgress(100);
       setSyncState("complete");
-      
+
       // Notify parent of successful sync
       if (onSyncSuccess) {
         onSyncSuccess(countToSync);
@@ -299,7 +210,7 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
   };
 
   const handleToggleSelection = (filename: string) => {
-    setSelectedTemplates(prev => {
+    setSelectedTemplates((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(filename)) {
         newSet.delete(filename);
@@ -334,128 +245,6 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
-          {/* Backup overlay */}
-          <AnimatePresence>
-            {backupState !== "idle" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm rounded-lg"
-              >
-                {backupState === "backing-up" ? (
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="flex flex-col items-center gap-4 px-6 w-full"
-                  >
-                    <motion.div
-                      animate={{ y: [0, -8, 0] }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <Download className="w-10 h-10 text-primary" />
-                    </motion.div>
-                    <div className="text-center space-y-1">
-                      <p className="text-sm font-medium">Backing up templates...</p>
-                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                        {currentBackupFile}
-                      </p>
-                    </div>
-                    <div className="w-full max-w-[200px] space-y-1">
-                      <Progress value={backupProgress} className="h-2" />
-                      <p className="text-xs text-center text-muted-foreground">
-                        {backupProgress}%
-                      </p>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="flex flex-col items-center gap-3"
-                  >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    >
-                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                        <CheckCircle className="w-8 h-8 text-primary" />
-                      </div>
-                    </motion.div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-primary">Backup Complete!</p>
-                      <p className="text-xs text-muted-foreground">
-                        {templates.length} templates saved
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Restore overlay */}
-          <AnimatePresence>
-            {restoreState !== "idle" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm rounded-lg"
-              >
-                {restoreState === "restoring" ? (
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="flex flex-col items-center gap-4 px-6 w-full"
-                  >
-                    <motion.div
-                      animate={{ y: [0, -8, 0] }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <UploadCloud className="w-10 h-10 text-primary" />
-                    </motion.div>
-                    <div className="text-center space-y-1">
-                      <p className="text-sm font-medium">Restoring templates to device...</p>
-                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                        {currentRestoreFile}
-                      </p>
-                    </div>
-                    <div className="w-full max-w-[200px] space-y-1">
-                      <Progress value={restoreProgress} className="h-2" />
-                      <p className="text-xs text-center text-muted-foreground">
-                        {restoreProgress}%
-                      </p>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="flex flex-col items-center gap-3"
-                  >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    >
-                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                        <CheckCircle className="w-8 h-8 text-primary" />
-                      </div>
-                    </motion.div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-primary">Restore Complete!</p>
-                      <p className="text-xs text-muted-foreground">
-                        Templates restored successfully
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Sync overlay */}
           <AnimatePresence>
             {syncState !== "idle" && (
@@ -473,12 +262,18 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                   >
                     <motion.div
                       animate={{ y: [0, -8, 0] }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     >
                       <Upload className="w-10 h-10 text-primary" />
                     </motion.div>
                     <div className="text-center space-y-1">
-                      <p className="text-sm font-medium">Syncing templates to device...</p>
+                      <p className="text-sm font-medium">
+                        Syncing templates to device...
+                      </p>
                       <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                         {currentSyncFile}
                       </p>
@@ -499,16 +294,23 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 15,
+                      }}
                     >
                       <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
                         <CheckCircle className="w-8 h-8 text-primary" />
                       </div>
                     </motion.div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-primary">Sync Complete!</p>
+                      <p className="text-sm font-medium text-primary">
+                        Sync Complete!
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {syncedCount} {syncedCount === 1 ? "template" : "templates"} uploaded
+                        {syncedCount}{" "}
+                        {syncedCount === 1 ? "template" : "templates"} uploaded
                       </p>
                     </div>
                   </motion.div>
@@ -531,12 +333,16 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                 {isAddingFile ? (
                   <>
                     <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
-                    <span className="text-sm text-muted-foreground">Adding template...</span>
+                    <span className="text-sm text-muted-foreground">
+                      Adding template...
+                    </span>
                   </>
                 ) : (
                   <>
                     <Plus className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Add new template...</span>
+                    <span className="text-sm text-muted-foreground">
+                      Add new template...
+                    </span>
                   </>
                 )}
               </motion.button>
@@ -551,13 +357,17 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                   className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted/50 bg-amber-500/10 border border-amber-500/30"
                 >
                   <div className="relative flex-shrink-0">
-                    <FileText className={`w-5 h-5 text-amber-600 dark:text-amber-400 ${template.landscape ? 'rotate-90' : ''}`} />
+                    <FileText
+                      className={`w-5 h-5 text-amber-600 dark:text-amber-400 ${template.landscape ? "rotate-90" : ""}`}
+                    />
                     <CloudOff className="w-3 h-3 text-amber-500 absolute -top-1 -right-1" />
                   </div>
                   <input
                     type="text"
                     value={template.name}
-                    onChange={(e) => onUpdateTemplateName?.(template.filename, e.target.value)}
+                    onChange={(e) =>
+                      onUpdateTemplateName?.(template.filename, e.target.value)
+                    }
                     className="text-sm flex-1 bg-transparent border-b border-transparent hover:border-muted-foreground/30 focus:border-primary focus:outline-none px-1 py-0.5 -mx-1"
                     placeholder="Template name"
                   />
@@ -568,29 +378,40 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
               ))}
 
               {/* Divider between unsynced and synced */}
-              {unsyncedTemplates.length > 0 && (syncedTemplates.length > 0 || deletionPendingTemplates.length > 0) && (
-                <div className="flex items-center gap-2 py-2">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">On Device</span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-              )}
+              {unsyncedTemplates.length > 0 &&
+                (syncedTemplates.length > 0 ||
+                  deletionPendingTemplates.length > 0) && (
+                  <div className="flex items-center gap-2 py-2">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      On Device
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                )}
 
               {/* Synced templates (on device) */}
               {syncedTemplates.map((template, index) => (
                 <motion.div
-                  key={`${template.filename}-${template.landscape ? 'l' : 'p'}`}
+                  key={`${template.filename}-${template.landscape ? "l" : "p"}`}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: (unsyncedTemplates.length + index) * 0.02 }}
+                  transition={{
+                    duration: 0.2,
+                    delay: (unsyncedTemplates.length + index) * 0.02,
+                  }}
                   className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted/50"
                 >
                   <Checkbox
                     checked={selectedTemplates.has(template.filename)}
-                    onCheckedChange={() => handleToggleSelection(template.filename)}
+                    onCheckedChange={() =>
+                      handleToggleSelection(template.filename)
+                    }
                     className="flex-shrink-0"
                   />
-                  <FileText className={`w-5 h-5 flex-shrink-0 text-muted-foreground ${template.landscape ? 'rotate-90' : ''}`} />
+                  <FileText
+                    className={`w-5 h-5 flex-shrink-0 text-muted-foreground ${template.landscape ? "rotate-90" : ""}`}
+                  />
                   <span className="text-sm flex-1">{template.name}</span>
                   {template.landscape && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
@@ -606,7 +427,9 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                   {syncedTemplates.length > 0 && (
                     <div className="flex items-center gap-2 py-2">
                       <div className="flex-1 h-px bg-border" />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Pending Deletion</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        Pending Deletion
+                      </span>
                       <div className="flex-1 h-px bg-border" />
                     </div>
                   )}
@@ -615,11 +438,22 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                       key={`${template.filename}-deletion`}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.2, delay: (unsyncedTemplates.length + syncedTemplates.length + index) * 0.02 }}
+                      transition={{
+                        duration: 0.2,
+                        delay:
+                          (unsyncedTemplates.length +
+                            syncedTemplates.length +
+                            index) *
+                          0.02,
+                      }}
                       className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-muted/50 bg-red-500/10 border border-red-500/30"
                     >
-                      <FileText className={`w-5 h-5 flex-shrink-0 text-red-600 dark:text-red-400 ${template.landscape ? 'rotate-90' : ''}`} />
-                      <span className="text-sm flex-1 line-through text-muted-foreground">{template.name}</span>
+                      <FileText
+                        className={`w-5 h-5 flex-shrink-0 text-red-600 dark:text-red-400 ${template.landscape ? "rotate-90" : ""}`}
+                      />
+                      <span className="text-sm flex-1 line-through text-muted-foreground">
+                        {template.name}
+                      </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 flex-shrink-0">
                         Pending deletion
                       </span>
@@ -632,38 +466,18 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
 
           {/* Action buttons */}
           <div className="flex gap-2">
-            <Button 
-              onClick={handleBackup} 
-              variant="outline"
-              className="flex-1 gap-2"
-              size="sm"
-              disabled={backupState !== "idle" || restoreState !== "idle" || syncState !== "idle" || templates.length === 0}
-            >
-              <Download className="w-4 h-4" />
-              Backup
-            </Button>
-            <Button 
-              onClick={handleRestore} 
-              variant="outline"
-              className="flex-1 gap-2"
-              size="sm"
-              disabled={backupState !== "idle" || restoreState !== "idle" || syncState !== "idle"}
-            >
-              <UploadCloud className="w-4 h-4" />
-              Restore
-            </Button>
             {selectedTemplates.size > 0 && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex-1"
               >
-                <Button 
+                <Button
                   onClick={handleDeleteSelected}
                   variant="destructive"
                   className="w-full gap-2"
                   size="sm"
-                  disabled={backupState !== "idle" || restoreState !== "idle" || syncState !== "idle"}
+                  disabled={syncState !== "idle"}
                 >
                   <Trash2 className="w-4 h-4" />
                   Delete ({selectedTemplates.size})
@@ -676,11 +490,11 @@ const TemplateList = ({ templates, onAddTemplate, onBackup, onRestore, onSync, o
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex-1"
               >
-                <Button 
+                <Button
                   onClick={handleSyncClick}
                   className="w-full gap-2"
                   size="sm"
-                  disabled={backupState !== "idle" || restoreState !== "idle" || syncState !== "idle"}
+                  disabled={syncState !== "idle"}
                 >
                   <Upload className="w-4 h-4" />
                   Sync ({unsyncedCount + deletionPendingCount})
