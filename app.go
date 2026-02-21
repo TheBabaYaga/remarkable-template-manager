@@ -17,8 +17,8 @@ type App struct {
 	config    *Config
 }
 
-// NewApp creates a new App application struct
-func NewApp() *App {
+// RemarkableTemplateManager creates a new App application struct
+func RemarkableTemplateManager() *App {
 	return &App{}
 }
 
@@ -45,12 +45,12 @@ func (a *App) LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Update internal config if loaded successfully
 	if config != nil {
 		a.config = config
 	}
-	
+
 	return config, nil
 }
 
@@ -61,7 +61,7 @@ func (a *App) SaveConfig(ip, sshKeyPath string) error {
 	if a.config != nil {
 		lastBackupDir = a.config.LastBackupDir
 	}
-	
+
 	config := &Config{
 		Version: configVersion,
 		Device: DeviceConfig{
@@ -70,14 +70,14 @@ func (a *App) SaveConfig(ip, sshKeyPath string) error {
 		},
 		LastBackupDir: lastBackupDir,
 	}
-	
+
 	if err := SaveConfig(config); err != nil {
 		return err
 	}
-	
+
 	// Update internal config
 	a.config = config
-	
+
 	return nil
 }
 
@@ -89,15 +89,15 @@ func (a *App) SaveLastBackupDirectory(dir string) error {
 			Version: configVersion,
 		}
 	}
-	
+
 	// Update last backup directory
 	a.config.LastBackupDir = dir
-	
+
 	// Save to disk
 	if err := SaveConfig(a.config); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -114,10 +114,10 @@ func (a *App) DeleteConfig() error {
 	if err := DeleteConfig(); err != nil {
 		return err
 	}
-	
+
 	// Clear internal config
 	a.config = nil
-	
+
 	return nil
 }
 

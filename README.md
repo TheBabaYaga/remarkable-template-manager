@@ -303,6 +303,7 @@ The Go backend provides the following methods (exposed via Wails):
 - **Build Tool**: Vite
 - **Animations**: Framer Motion
 - **SSH**: golang.org/x/crypto/ssh
+- **Development Workflow**: [OpenSpec](https://github.com/Fission-AI/OpenSpec/) — structured artifact-driven change management
 
 ## Documentation
 
