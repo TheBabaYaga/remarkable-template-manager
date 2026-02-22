@@ -221,6 +221,8 @@ The output binary will be in `build/bin/`.
 
 ### Connecting to Your Device
 
+**Important:** Your reMarkable tablet must be connected to your computer via USB and fully awake. The device does not accept SSH connections while in sleep mode.
+
 1. Click "Connect Device" on the main screen
 2. Choose a setup method:
    - **Simplified Setup** (recommended): Enter your device IP address and password — the app auto-generates an SSH key, uploads it, and connects
