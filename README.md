@@ -2,6 +2,8 @@
 
 A desktop application for managing templates on your reMarkable device, built with [Wails](https://wails.io/) (Go + React). Upload, delete, and organize templates with an intuitive interface.
 
+> **Heads up:** Every reMarkable software update resets templates back to the defaults. After uploading custom templates, it's strongly recommended to take a backup so you can restore them after an update. Without a backup you won't lose any data — your notes are unaffected — but any custom templates will be replaced with blanks.
+
 ## Features
 
 ### Connection Management
